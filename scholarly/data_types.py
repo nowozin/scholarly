@@ -11,14 +11,56 @@ else:
 
 class PublicationSource(Enum):
     '''
-    Defines the source of the publication
+    Defines the source of the publication. In general, a publication 
+    on Google Scholar has two forms:
+    * Appearing as a PUBLICATION SNIPPET and
+    * Appearing as a paper in an AUTHOR PAGE
     
-    Publication search: https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=adaptive+fraud+detection&btnG=
+    ------------
     
-    Author page: https://scholar.google.com/citations?view_op=view_citation&hl=en&citation_for_view=-Km63D4AAAAJ:d1gkVwhDpl0C
+    "PUBLICATION SEARCH SNIPPET". 
+    This form captures the publication  when it appears as a "snippet" in 
+    the context of the resuls of a publication search. For example:
+    
+    Publication search: https://scholar.google.com/scholar?hl=en&q=adaptive+fraud+detection&btnG=&as_sdt=0%2C33
+    
+    The entries appear under the <div class = "gs_r gs_or gs_scl"> tags
+    Each entry has a data-cid attribute (e.g., data-cid="pthm1bWT96oJ")
+    
+    The same type of results will also appear when someome searches 
+    using the "cited by", "related articles", and "all XX versions" links
+    that appear under the publication snippet.
+    
+    "Cited By" link: https://scholar.google.com/scholar?cites=12319477714873931942&as_sdt=5,33&sciodt=0,33&hl=en
+    
+    "Related Articles" link: https://scholar.google.com/scholar?q=related:pthm1bWT96oJ:scholar.google.com/&scioq=adaptive+fraud+detection&hl=en&as_sdt=0,33
+    
+    "All versions" link: https://scholar.google.com/scholar?cluster=12319477714873931942&hl=en&as_sdt=0,33
+    
+    The snippet version of these publications contain the information that appears in the results.
+    Often, the snippet version will miss authors, will have an abbreviated name for the venue, and so on.
+    
+    We can fill these snippets by clicking on the "Cite" button" and get back the MLA/APA/Chicago/... 
+    citations forms, PLUS links for BibTeX, EndNote, RefMan, and RefWorks.
+    
+    ------------
+    "AUTHOR PUBLICATION ENTRY"
+    
+    We also have publications that appear in the "author pages" of Google Scholar. 
+    These publications are often a set of publications "merged" together. 
+    
+    The snippet version of these publications conains the title of the publication,
+    a subset of the authors, the (sometimes truncated) venue, and the year of the publication
+    and the number of papers that cite the publication.
+    
+    The snippet entries appear under the <tr class="gsc_a_tr"> entries in the main page of the author.
+    
+    To fill in the publication, we open the "detailed view" of the paper
+    
+    Detailed view page: https://scholar.google.com/citations?view_op=view_citation&hl=en&citation_for_view=-Km63D4AAAAJ:d1gkVwhDpl0C
     '''
-    PUB_SEARCH = 1
-    AUTHOR_PAGE = 2
+    PUBLICATION_SEARCH_SNIPPET = 1
+    AUTHOR_PUBLICATION_ENTRY = 2
     
 class AuthorSource(Enum):
     '''
@@ -30,9 +72,9 @@ class AuthorSource(Enum):
     
     Coauthors: From the list of co-authors from an Author page
     '''
-    AUTHOR_PAGE = 1
-    SEARCH_AUTHOR = 2
-    COAUTHORS = 3
+    AUTHOR_PROFILE_PAGE = 1
+    SEARCH_AUTHOR_SNIPPETS = 2
+    CO_AUTHORS_LIST = 3
     
 
 class BibEntry(TypedDict):
@@ -40,7 +82,7 @@ class BibEntry(TypedDict):
     The bibliographic entry for a publication
     '''
     title: str
-    authors: str
+    authors: List[str]
     abstract: str
     pub_year: int
     pub_month: int
@@ -71,7 +113,7 @@ class Publication(TypedDict):
                        the "citedby_id" will be a comma-separated list of values. 
                        It is also used to return the "cluster" of all the different versions of the paper.
                        https://scholar.google.com/scholar?cluster=16766804411681372720&hl=en
-    :param related_id: Used to return the related papers for the given publication                       
+    :param related_id: Used to return the related papers for the given publication (also called "data-cid")                      
     :param source: The source of the publication entry
     :param bib: The bibliographic entry for the page
     :param total_citations: The total number of publication that cite this publication
