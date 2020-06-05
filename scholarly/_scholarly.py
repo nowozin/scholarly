@@ -214,13 +214,3 @@ class _Scholarly:
         """
         url = _KEYWORDSEARCH.format(requests.utils.quote(keyword))
         return self.__nav.search_authors(url)
-
-    def search_pubs_custom_url(self, url: str):
-        """Search by custom URL and return a generator of Publication objects
-        URL should be of the form '/scholar?q=...'"""
-        return self.__nav.search_publications(url)
-
-    def search_author_custom_url(self, url: str):
-        """Search by custom URL and return a generator of Author objects
-        URL should be of the form '/citation?q=...'"""
-        return self.__nav.search_authors(url)
