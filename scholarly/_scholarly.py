@@ -10,8 +10,23 @@ _PUBSEARCH = '/scholar?hl=en&q={0}'
 class _Scholarly:
     """Class that manages the API for scholarly"""
 
+    def __enter__(self):
+        return self
+
     def __init__(self):
         self.__nav = Navigator()
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if self.__nav is not None:
+            print("navin")
+            self.__nav._session_close()
+            self.__nav = None
+
+    def __call__(self):
+        return self
+
+    def __del__(self):
+        self = None
 
     def use_proxy(self, http: str, https: str):
         """Setups a proxy without refreshing capabilities.
