@@ -1,4 +1,5 @@
 from fp.fp import FreeProxy
+from typing import Callable
 import requests
 
 class ProxyGenerator(object):
@@ -9,15 +10,35 @@ class ProxyGenerator(object):
                  use_freeproxy: bool=False,
                  use_proxy: bool=False, http_proxy: str=None, https_proxy: str=None):
         
+        check = (launch_tor ^ use_tor ^ use_freeproxy ^ use_proxy == 1)
+        assert check, "One and only one of launch_tor, use_tor, use_freeproxy, use_proxy can be True"
         
-        
-        # If we have a Tor server that we can refresh, we set this to True
+        self.launch_tor = launch_tor
+        self.use_tor = use_tor
+        self.use_freeproxy = use_freeproxy
+        self.use_proxy = use_proxy
+
         self._tor_process = None
-        self._can_refresh_tor = False
         self._tor_control_port = None
+        self._tor_sock_port = None
         self._tor_password = None
         
+        if self.launch_tor:
+            self._launch_tor(tor_cmd, tor_sock_port, tor_control_port)
+            
+        if self.use_tor:
+            self._setup_tor(tor_sock_port, tor_control_port, tor_password)            
+        
+                        "http_proxy": self.http_proxy,
+                "https_proxy": self.https_proxy,
 
+
+        
+
+    def __del__(self):
+        if self._tor_process:
+            self._tor_process.kill()        
+        
     def check_proxy(http: str, https: str = None):
         """Checks in the proxy works and returns a True/False value respectively. 
         It also returns the exit IP address if the proxy works.
@@ -52,23 +73,31 @@ class ProxyGenerator(object):
         
     def get_next_proxy(self):
         
+        if self.launch_tor or self.use_tor:
+            return self._get_next_tor_exit()
+                    
         if self.use_freeproxy:
             return self._get_next_freeproxy()
-        
-        if self.launch_tor:
-            return self._refresh_tor_id()
-        
-        if self.use_tor:
-            return self._refresh_tor_id()
+
+        if self.use_proxy:
+            # Not a renewable proxy. We just check that it works, and return
+            # the exit IP address
+            result = self.check_proxy(http=self.http_proxy, https=self.https_proxy)
+            return {
+                "http_proxy": self.http_proxy,
+                "https_proxy": self.https_proxy,
+                "proxy_works": result["proxy_works"],
+                "ip_addr": result["ip_addr"]
+            }     
     
-    def _get_next_freeproxy(max_retries=100):
+    def _get_next_freeproxy(self, max_retries=100):
         '''
         Uses the FreeProxy library and fetches a new proxy. We check that 
         the proxy works before returning it.
         '''
         for _ in range(max_retries):
             proxy = FreeProxy(rand=True, timeout=1).get()
-            result = scholarly._check_proxy(http=proxy, https=proxy)
+            result = self.check_proxy(http=proxy, https=proxy)
             if result['proxy_works']:
                 break
         return {
@@ -77,8 +106,27 @@ class ProxyGenerator(object):
             "ip_addr": result["ip_addr"]
         }
             
-    
-
+    def _get_next_tor_exit(self, max_retries=100):
+        '''
+        Use the control port of Tor, and asks for a new exit node 
+        from the Tor network.
+        
+        TODO: Structure is very similar with _get_next_freeproxy. Consider merging
+        '''        
+        for _ in range(max_retries):
+            success = self._refresh_tor_id(self._tor_control_port, self._tor_password)
+            if not success: continue 
+                
+            proxy = f"socks5://127.0.0.1:{tor_sock_port}"
+            result = self.check_proxy(http=proxy, https=proxy)
+            if result['proxy_works']:
+                break
+            
+        return {
+            "proxy": proxy,
+            "proxy_works": result["proxy_works"],
+            "ip_addr": result["ip_addr"]
+        }
 
     def _refresh_tor_id(self, tor_control_port: int, password: str) -> bool:
         """Refreshes the id by using a new ToR node.
@@ -111,7 +159,8 @@ class ProxyGenerator(object):
             return {
                 "proxy_works": False,
                 "refresh_works": False,
-                "proxies": {'http': None, 'https': None},
+                "http_proxy": None,
+                
                 "tor_control_port": None,
                 "tor_sock_port": None
             }
@@ -126,7 +175,9 @@ class ProxyGenerator(object):
             # with simultaneous runs of scholarly
             tor_control_port = random.randrange(9500, 9999)
 
-        # TODO: Check that the launched Tor process stops after scholar is done
+        if self._tor_process:
+            self._tor_process.kill()             
+        
         self._tor_process = stem.process.launch_tor_with_config(
             tor_cmd=tor_cmd,
             config={
@@ -141,30 +192,6 @@ class ProxyGenerator(object):
         
         
 
-    def _use_proxy(self, http: str, https: str = None) -> bool:
-        """Allows user to set their own proxy for the connection session.
-        Sets the proxy, and checks if it works.
-
-        :param http: the http proxy
-        :type http: str
-        :param https: the https proxy (default to the same as http)
-        :type https: str
-        :returns: if the proxy works
-        :rtype: {bool}
-        """
-
-        if https is None:
-            https = http
-
-        proxies = {'http': http, 'https': https}
-        self._proxy_works = self._check_proxy(proxies)
-        if self._proxy_works:
-            self.logger.info(f"Enabling proxies: http={http} https={https}")
-            self.proxies = proxies
-        else:
-            self.logger.info(f"Proxy {http} does not seem to work.")
-        return self._proxy_works
-
     def _setup_tor(self, tor_sock_port: int, tor_control_port: int, tor_password: str):
         """
         Setting up Tor Proxy
@@ -178,15 +205,17 @@ class ProxyGenerator(object):
         """
 
         proxy = f"socks5://127.0.0.1:{tor_sock_port}"
-        self._use_proxy(http=proxy, https=proxy)
+        \
 
         self._can_refresh_tor = self._refresh_tor_id(tor_control_port, tor_password)
         if self._can_refresh_tor:
             self._tor_control_port = tor_control_port
             self._tor_password = tor_password
+            self._tor_sock_port = tor_sock_port
         else:
             self._tor_control_port = None
             self._tor_password = None
+            self._tor_sock_port = None
 
         return {
             "proxy_works": self._proxy_works,
