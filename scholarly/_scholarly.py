@@ -156,6 +156,10 @@ class _Scholarly:
         url = _PUBSEARCH.format(requests.utils.quote(pub_title))
         return self.__nav.search_publication(url, filled)
 
+    def get_author(self, id: str):
+        """Obtain a single autor by Scholar Id"""
+        return self.__nav.get_author(id)
+
     def search_author(self, name: str):
         """Search by author name and return a generator of Author objects
 

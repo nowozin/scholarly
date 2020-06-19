@@ -22,6 +22,7 @@ class Author:
                           'coauthors',
                           'publications'}
 
+        self.html = None
         if isinstance(__data, str):
             self.id = __data
         else:
@@ -185,6 +186,7 @@ class Author:
             url_citations = _CITATIONAUTH.format(self.id)
             url = '{0}&pagesize={1}'.format(url_citations, _PAGESIZE)
             soup = self.nav._get_soup(url)
+            self.html = soup.prettify(formatter="html")
 
             if sections == []:
                 for i in self._sections:

@@ -298,6 +298,10 @@ class Navigator(object, metaclass=Singleton):
             pass
         return res
 
+    def get_author(self, id: str):
+        """Obtain a single autor by Scholar Id"""
+        return Author(self, id)
+
     def search_authors(self, url: str):
         """Generator that returns Author objects from the author search page"""
         soup = self._get_soup(url)
