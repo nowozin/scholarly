@@ -28,9 +28,6 @@ class Author:
         else:
             self.id = re.findall(_CITATIONAUTHRE, __data('a')[0]['href'])[0]
 
-            pic = '/citations?view_op=medium_photo&user={}'.format(self.id)
-            self.url_picture = _HOST.format(pic)
-
             name_class = self._find_tag_class_name(__data, 'h3', 'name')
             self.name = __data.find('h3', class_=name_class).text
 
@@ -53,6 +50,10 @@ class Author:
             if citedby and citedby.text != '':
                 self.citedby = int(citedby.text[9:])
 
+        pic = '/citations?view_op=medium_photo&user={}'.format(self.id)
+        self.url_picture = _HOST.format(pic)
+
+
     def _find_tag_class_name(self, __data, tag, text):
         elements = __data.find_all(tag)
         for element in elements:
@@ -62,6 +63,9 @@ class Author:
     def _fill_basics(self, soup):
         self.name = soup.find('div', id='gsc_prf_in').text
         self.affiliation = soup.find('div', class_='gsc_prf_il').text
+        homepage = soup.find('a', class_='gsc_prf_ila')
+        if homepage:
+            self.homepage = homepage['href']
         self.interests = [i.text.strip() for i in
                           soup.find_all('a', class_='gsc_prf_inta')]
 
